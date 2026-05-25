@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reddat</title>
+  <meta name="description" content="Reddat — real communities, real posts, no fake starter content." />
+  <meta property="og:title" content="Reddat" />
+  <meta property="og:description" content="Real communities and discussions at reddat.github.io." />
+  <meta property="og:url" content="https://reddat.github.io" />
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+</head>
+<body>
+  <!-- NAVBAR -->
+  <nav class="navbar">
+    <div class="nav-left">
+      <a href="#" class="logo" onclick="showPage('home')">
+        <i class="fa-brands fa-reddit" style="color:#ff4500;font-size:2rem;"></i>
+        <span class="logo-text">reddat</span>
+      </a>
+      <div class="search-bar">
+        <i class="fa fa-search"></i>
+        <input type="text" id="searchInput" placeholder="Search Reddat" oninput="handleSearch(this.value)" />
+      </div>
+    </div>
+    <div class="nav-right" id="navRight">
+      <button class="btn btn-outline" onclick="showModal('loginModal')">Log In</button>
+      <button class="btn btn-primary" onclick="showModal('registerModal')">Sign Up</button>
+      <button class="theme-toggle" onclick="toggleTheme()" title="Toggle dark mode">
+        <i class="fa fa-moon" id="themeIcon"></i>
+      </button>
+    </div>
+  </nav>
+
+  <!-- PAGES -->
+  <div id="app">
+
+    <!-- HOME PAGE -->
+    <div id="homePage" class="page active">
+      <div class="layout">
+        <main class="feed-container">
+          <div class="sort-bar">
+            <button class="sort-btn active" onclick="setSort('hot',this)"><i class="fa fa-fire"></i> Hot</button>
+            <button class="sort-btn" onclick="setSort('new',this)"><i class="fa fa-clock"></i> New</button>
+            <button class="sort-btn" onclick="setSort('top',this)"><i class="fa fa-trophy"></i> Top</button>
+          </div>
+          <div id="postFeed"></div>
+        </main>
+        <aside class="sidebar">
+          <div class="sidebar-card">
+            <h3>🏠 Home</h3>
+            <p>Real communities and conversations. Create the first community or post to get started.</p>
+            <button class="btn btn-primary w-full" onclick="requireAuth(()=>showModal('createPostModal'))">Create Post</button>
+            <button class="btn btn-outline w-full mt-8" onclick="requireAuth(()=>showModal('createSubModal'))">Create Community</button>
+          </div>
+          <div class="sidebar-card">
+            <h3>Communities</h3>
+            <div id="sidebarSubreddits"></div>
+          </div>
+        </aside>
+      </div>
+    </div>
+
+    <!-- SUBREDDIT PAGE -->
+    <div id="subredditPage" class="page">
+      <div class="sub-banner" id="subBanner"></div>
+      <div class="layout">
+        <main class="feed-container">
+          <div class="sort-bar">
+            <button class="sort-btn active" onclick="setSort('hot',this)"><i class="fa fa-fire"></i> Hot</button>
+            <button class="sort-btn" onclick="setSort('new',this)"><i class="fa fa-clock"></i> New</button>
+            <button class="sort-btn" onclick="setSort('top',this)"><i class="fa fa-trophy"></i> Top</button>
+          </div>
+          <div id="subPostFeed"></div>
+        </main>
+        <aside class="sidebar">
+          <div class="sidebar-card" id="subInfo"></div>
+        </aside>
+      </div>
+    </div>
+
+    <!-- POST DETAIL PAGE -->
+    <div id="postPage" class="page">
+      <div class="layout">
+        <main class="feed-container" id="postDetail"></main>
+        <aside class="sidebar">
+          <div class="sidebar-card" id="postSidebar"></div>
+        </aside>
+      </div>
+    </div>
+
+    <!-- PROFILE PAGE -->
+    <div id="profilePage" class="page">
+      <div class="layout">
+        <main class="feed-container">
+          <div class="profile-header" id="profileHeader"></div>
+          <div class="sort-bar" style="margin-top:12px">
+            <button class="sort-btn active" onclick="profileTab('posts',this)">Posts</button>
+            <button class="sort-btn" onclick="profileTab('comments',this)">Comments</button>
+          </div>
+          <div id="profileContent"></div>
+        </main>
+        <aside class="sidebar">
+          <div class="sidebar-card" id="profileSidebar"></div>
+        </aside>
+      </div>
+    </div>
+
+    <!-- SEARCH PAGE -->
+    <div id="searchPage" class="page">
+      <div class="layout">
+        <main class="feed-container">
+          <h2 id="searchTitle" style="margin-bottom:16px"></h2>
+          <div id="searchResults"></div>
+        </main>
+        <aside class="sidebar">
+          <div class="sidebar-card">
+            <h3>Search Tips</h3>
+            <p>Search across posts, communities, and users. Try typing a topic or community name.</p>
+          </div>
+        </aside>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- MODALS -->
+  <div class="modal-overlay" id="loginModal" onclick="closeModalOutside(event,'loginModal')">
+    <div class="modal">
+      <button class="modal-close" onclick="closeModal('loginModal')"><i class="fa fa-times"></i></button>
+      <h2>Log In</h2>
+      <div id="loginError" class="form-error"></div>
+      <input type="text" id="loginUsername" placeholder="Username" class="form-input" />
+      <input type="password" id="loginPassword" placeholder="Password" class="form-input" />
+      <button class="btn btn-primary w-full" onclick="login()">Log In</button>
+      <p class="modal-switch">New to Reddat? <a href="#" onclick="switchModal('loginModal','registerModal')">Sign Up</a></p>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="registerModal" onclick="closeModalOutside(event,'registerModal')">
+    <div class="modal">
+      <button class="modal-close" onclick="closeModal('registerModal')"><i class="fa fa-times"></i></button>
+      <h2>Sign Up</h2>
+      <div id="registerError" class="form-error"></div>
+      <input type="text" id="regUsername" placeholder="Username" class="form-input" />
+      <input type="email" id="regEmail" placeholder="Email" class="form-input" />
+      <input type="password" id="regPassword" placeholder="Password" class="form-input" />
+      <button class="btn btn-primary w-full" onclick="register()">Create Account</button>
+      <p class="modal-switch">Already have an account? <a href="#" onclick="switchModal('registerModal','loginModal')">Log In</a></p>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="createPostModal" onclick="closeModalOutside(event,'createPostModal')">
+    <div class="modal modal-wide">
+      <button class="modal-close" onclick="closeModal('createPostModal')"><i class="fa fa-times"></i></button>
+      <h2>Create a Post</h2>
+      <div id="createPostError" class="form-error"></div>
+      <select id="postSubreddit" class="form-input">
+        <option value="">Choose a community</option>
+      </select>
+      <input type="text" id="postTitle" placeholder="Title" class="form-input" maxlength="300" />
+      <textarea id="postBody" placeholder="Text (optional)" class="form-input form-textarea"></textarea>
+      <input type="text" id="postImageUrl" placeholder="Image URL (optional)" class="form-input" />
+      <button class="btn btn-primary w-full" onclick="createPost()">Post</button>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="createSubModal" onclick="closeModalOutside(event,'createSubModal')">
+    <div class="modal">
+      <button class="modal-close" onclick="closeModal('createSubModal')"><i class="fa fa-times"></i></button>
+      <h2>Create a Community</h2>
+      <div id="createSubError" class="form-error"></div>
+      <input type="text" id="subName" placeholder="Community name (no spaces)" class="form-input" maxlength="21" />
+      <input type="text" id="subDescription" placeholder="Description" class="form-input" />
+      <input type="text" id="subColor" placeholder="Banner color (e.g. #ff4500)" class="form-input" value="#ff4500" />
+      <button class="btn btn-primary w-full" onclick="createSubreddit()">Create Community</button>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="commentModal" onclick="closeModalOutside(event,'commentModal')">
+    <div class="modal modal-wide">
+      <button class="modal-close" onclick="closeModal('commentModal')"><i class="fa fa-times"></i></button>
+      <h2 id="commentModalTitle">Add a Comment</h2>
+      <div id="commentError" class="form-error"></div>
+      <textarea id="commentBody" placeholder="What are your thoughts?" class="form-input form-textarea"></textarea>
+      <button class="btn btn-primary w-full" onclick="submitComment()">Comment</button>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
