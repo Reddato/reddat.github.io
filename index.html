@@ -53,6 +53,7 @@
             <p>Real communities and conversations. Create the first community or post to get started.</p>
             <button class="btn btn-primary w-full" onclick="requireAuth(()=>showModal('createPostModal'))">Create Post</button>
             <button class="btn btn-outline w-full mt-8" onclick="requireAuth(()=>showModal('createSubModal'))">Create Community</button>
+            <button class="btn btn-ghost w-full mt-8" onclick="showModal('tosModal')">Terms of Service</button>
           </div>
           <div class="sidebar-card">
             <h3>Communities</h3>
@@ -135,6 +136,7 @@
       <input type="password" id="loginPassword" placeholder="Password" class="form-input" />
       <button class="btn btn-primary w-full" onclick="login()">Log In</button>
       <p class="modal-switch">New to Reddat? <a href="#" onclick="switchModal('loginModal','registerModal')">Sign Up</a></p>
+      <p class="modal-switch">By using Reddat, you agree to the <a href="#" onclick="switchModal('loginModal','tosModal')">Terms of Service</a>.</p>
     </div>
   </div>
 
@@ -148,6 +150,7 @@
       <input type="password" id="regPassword" placeholder="Password" class="form-input" />
       <button class="btn btn-primary w-full" onclick="register()">Create Account</button>
       <p class="modal-switch">Already have an account? <a href="#" onclick="switchModal('registerModal','loginModal')">Log In</a></p>
+      <p class="modal-switch">By creating an account, you agree to the <a href="#" onclick="switchModal('registerModal','tosModal')">Terms of Service</a>.</p>
     </div>
   </div>
 
@@ -185,6 +188,38 @@
       <div id="commentError" class="form-error"></div>
       <textarea id="commentBody" placeholder="What are your thoughts?" class="form-input form-textarea"></textarea>
       <button class="btn btn-primary w-full" onclick="submitComment()">Comment</button>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="tosModal" onclick="closeModalOutside(event,'tosModal')">
+    <div class="modal modal-wide tos-modal">
+      <button class="modal-close" onclick="closeModal('tosModal')"><i class="fa fa-times"></i></button>
+      <h2>Terms of Service</h2>
+      <p class="tos-updated">Last updated: May 25, 2026</p>
+
+      <h3>1. Acceptance</h3>
+      <p>By accessing or using Reddat, you agree to follow these Terms of Service. If you do not agree, do not use the site.</p>
+
+      <h3>2. User Content</h3>
+      <p>You are responsible for anything you post, comment, upload, or share. Do not post illegal, harmful, threatening, abusive, hateful, sexual, violent, or misleading content.</p>
+
+      <h3>3. No Doxxing or Harassment</h3>
+      <p>You may not post private personal information about another person, encourage harassment, threaten anyone, impersonate others, or target people with abuse.</p>
+
+      <h3>4. Moderation</h3>
+      <p>Admins may remove posts or comments and ban users when content breaks these terms or harms the community.</p>
+
+      <h3>5. Accounts</h3>
+      <p>You are responsible for your account activity. Do not use automated abuse, spam, scams, malware, or attempts to disrupt the site.</p>
+
+      <h3>6. Local Data</h3>
+      <p>This version of Reddat stores app data in your browser using localStorage. Clearing browser data may remove accounts, posts, comments, follows, likes, and settings on that device.</p>
+
+      <h3>7. No Warranty</h3>
+      <p>Reddat is provided as-is without warranties. Features may change, break, or be removed at any time.</p>
+
+      <h3>8. Contact</h3>
+      <p>For moderation or terms questions, contact the site admin.</p>
     </div>
   </div>
 
