@@ -16,6 +16,7 @@ let state = {
 
 const SITE_URL = 'https://reddat.github.io';
 const ADMIN_EMAIL = 'xynfangss@gmail.com';
+const ADMIN_FOLLOWERS = 10000000;
 
 // ── STORAGE HELPERS ────────────────────────────────────────
 const S = {
@@ -30,6 +31,8 @@ function getComments()   { return S.get('rdt_comments')   || []; }
 function getVotes()      { return S.get('rdt_votes')      || {}; }
 function getJoined()     { return S.get('rdt_joined')     || {}; }
 function getBans()       { return S.get('rdt_bans')       || {}; }
+function getFollows()    { return S.get('rdt_follows')    || {}; }
+function getLikes()      { return S.get('rdt_likes')      || {}; }
 function saveUsers(v)    { S.set('rdt_users', v); }
 function savePosts(v)    { S.set('rdt_posts', v); }
 function saveSubs(v)     { S.set('rdt_subs', v); }
@@ -37,6 +40,8 @@ function saveComments(v) { S.set('rdt_comments', v); }
 function saveVotes(v)    { S.set('rdt_votes', v); }
 function saveJoined(v)   { S.set('rdt_joined', v); }
 function saveBans(v)     { S.set('rdt_bans', v); }
+function saveFollows(v)  { S.set('rdt_follows', v); }
+function saveLikes(v)    { S.set('rdt_likes', v); }
 
 // ── SEED DATA ──────────────────────────────────────────────
 function seedData() {
@@ -60,7 +65,7 @@ function init() {
   const saved = S.get('rdt_session');
   if (saved) {
     const users = getUsers();
-    if (users[saved]) state.currentUser = users[saved];
+    if (users[saved]) state.currentUser = saveNormalizedUser(users[saved]);
   }
   renderNav();
   showPage('home');
@@ -239,6 +244,8 @@ function renderPostCard(p) {
   const sub = subs.find(s => s.id === p.subId) || { name: 'unknown', color: '#888' };
   const votes = getUserVote('post', p.id);
   const displayVotes = p.votes + (votes === 1 ? 1 : votes === -1 ? -1 : 0);
+  const likeCount = getLikeCount(p.id);
+  const liked = hasLiked(p.id);
   const adminTools = isAdmin() ? `
           <button class="action-btn admin-action" onclick="deletePost('${p.id}')"><i class="fa fa-trash"></i> Delete</button>
           <button class="action-btn admin-action" onclick="banUser('${esc(p.author)}')"><i class="fa fa-ban"></i> Ban u/${esc(p.author)}</button>
@@ -253,7 +260,7 @@ function renderPostCard(p) {
       <div class="post-content">
         <div class="post-meta">
           <span class="sub-link" onclick="showSubreddit('${sub.id}')" style="color:${sub.color}">r/${esc(sub.name)}</span>
-          &nbsp;•&nbsp; Posted by <span onclick="showProfile('${esc(p.author)}')" style="cursor:pointer">u/${esc(p.author)}</span>
+          &nbsp;•&nbsp; Posted by <span onclick="showProfile('${esc(p.author)}')" style="cursor:pointer">u/${esc(p.author)} ${renderUserBadges(p.author)}</span>
           &nbsp;•&nbsp; ${timeAgo(p.created)}
         </div>
         <div class="post-title" onclick="showPost('${p.id}')">${esc(p.title)}</div>
@@ -261,6 +268,7 @@ function renderPostCard(p) {
         ${p.body ? `<div class="post-body-preview">${esc(p.body)}</div>` : ''}
         <div class="post-actions">
           <button class="action-btn" onclick="showPost('${p.id}')"><i class="fa fa-comment"></i> ${getComments().filter(c=>c.postId===p.id).length} Comments</button>
+          <button class="action-btn ${liked?'liked':''}" onclick="toggleLike('${p.id}')"><i class="fa fa-heart"></i> ${formatNum(likeCount)} Likes</button>
           <button class="action-btn" onclick="sharePost('${p.id}')"><i class="fa fa-share"></i> Share</button>
           ${adminTools}
         </div>
@@ -297,6 +305,8 @@ function renderPostDetail(postId) {
   const comments = getComments().filter(c => c.postId === postId);
   const votes = getUserVote('post', postId);
   const displayVotes = post.votes + (votes === 1 ? 1 : votes === -1 ? -1 : 0);
+  const likeCount = getLikeCount(postId);
+  const liked = hasLiked(postId);
   const adminTools = isAdmin() ? `
         <button class="action-btn admin-action" onclick="deletePost('${postId}')"><i class="fa fa-trash"></i> Delete Post</button>
         <button class="action-btn admin-action" onclick="banUser('${esc(post.author)}')"><i class="fa fa-ban"></i> Ban u/${esc(post.author)}</button>
@@ -306,7 +316,7 @@ function renderPostDetail(postId) {
     <div class="post-detail-card">
       <div class="post-meta">
         <span class="sub-link" onclick="showSubreddit('${sub.id}')" style="color:${sub.color};cursor:pointer;font-weight:700">r/${esc(sub.name)}</span>
-        &nbsp;•&nbsp; Posted by <span onclick="showProfile('${esc(post.author)}')" style="cursor:pointer">u/${esc(post.author)}</span>
+        &nbsp;•&nbsp; Posted by <span onclick="showProfile('${esc(post.author)}')" style="cursor:pointer">u/${esc(post.author)} ${renderUserBadges(post.author)}</span>
         &nbsp;•&nbsp; ${timeAgo(post.created)}
       </div>
       <div class="post-detail-title">${esc(post.title)}</div>
@@ -316,6 +326,7 @@ function renderPostDetail(postId) {
         <button class="vote-btn ${votes===1?'active-up':''}" onclick="votePost('${postId}',1);renderPostDetail('${postId}')"><i class="fa fa-arrow-up"></i></button>
         <span style="font-size:0.85rem;font-weight:700;margin:0 4px">${formatNum(displayVotes)}</span>
         <button class="vote-btn downvote ${votes===-1?'active-down':''}" onclick="votePost('${postId}',-1);renderPostDetail('${postId}')"><i class="fa fa-arrow-down"></i></button>
+        <button class="action-btn ${liked?'liked':''}" onclick="toggleLike('${postId}');renderPostDetail('${postId}')"><i class="fa fa-heart"></i> ${formatNum(likeCount)} Likes</button>
         <button class="action-btn" onclick="sharePost('${postId}')"><i class="fa fa-share"></i> Share</button>
         ${adminTools}
       </div>
@@ -349,7 +360,7 @@ function renderComment(c) {
   return `
     <div class="comment" id="comment-${c.id}">
       <div class="comment-meta">
-        <span class="comment-author" onclick="showProfile('${esc(c.author)}')">${esc(c.author)}</span>
+        <span class="comment-author" onclick="showProfile('${esc(c.author)}')">${esc(c.author)} ${renderUserBadges(c.author)}</span>
         &nbsp;•&nbsp; ${timeAgo(c.created)}
       </div>
       <div class="comment-body">${esc(c.body)}</div>
@@ -427,6 +438,94 @@ function updateAuthorKarma(username, delta) {
 
 function isAdmin() {
   return !!state.currentUser && String(state.currentUser.email || '').toLowerCase() === ADMIN_EMAIL;
+}
+
+function userIsAdmin(user) {
+  return !!user && String(user.email || '').toLowerCase() === ADMIN_EMAIL;
+}
+
+function getUserByUsername(username) {
+  return getUsers()[username] || null;
+}
+
+function getFollowerCount(username) {
+  const users = getUsers();
+  const user = users[username];
+  let count = Object.values(getFollows()).filter(list => Array.isArray(list) && list.includes(username)).length;
+  if (userIsAdmin(user)) count += ADMIN_FOLLOWERS;
+  return count;
+}
+
+function getFollowingCount(username) {
+  return (getFollows()[username] || []).length;
+}
+
+function isFollowing(username) {
+  if (!state.currentUser) return false;
+  return (getFollows()[state.currentUser.username] || []).includes(username);
+}
+
+function toggleFollow(username) {
+  if (!state.currentUser) { showModal('loginModal'); return; }
+  if (username === state.currentUser.username) return;
+  const follows = getFollows();
+  const current = state.currentUser.username;
+  if (!follows[current]) follows[current] = [];
+  const idx = follows[current].indexOf(username);
+  if (idx === -1) follows[current].push(username);
+  else follows[current].splice(idx, 1);
+  saveFollows(follows);
+  renderProfile(username);
+}
+
+function getLikeCount(postId) {
+  return Object.values(getLikes()).filter(list => Array.isArray(list) && list.includes(postId)).length;
+}
+
+function hasLiked(postId) {
+  if (!state.currentUser) return false;
+  return (getLikes()[state.currentUser.username] || []).includes(postId);
+}
+
+function toggleLike(postId) {
+  if (!state.currentUser) { showModal('loginModal'); return; }
+  const likes = getLikes();
+  const current = state.currentUser.username;
+  if (!likes[current]) likes[current] = [];
+  const idx = likes[current].indexOf(postId);
+  if (idx === -1) likes[current].push(postId);
+  else likes[current].splice(idx, 1);
+  saveLikes(likes);
+  const card = document.getElementById('postcard-' + postId);
+  const post = getPosts().find(p => p.id === postId);
+  if (card && post) {
+    const tmp = document.createElement('div');
+    tmp.innerHTML = renderPostCard(post);
+    card.replaceWith(tmp.firstElementChild);
+  }
+}
+
+function renderUserBadges(username) {
+  const user = getUserByUsername(username);
+  if (!user) return '';
+  const badges = [];
+  if (getFollowerCount(username) >= 100000) badges.push('<span class="badge verified-badge"><i class="fa fa-check"></i> Verified</span>');
+  if (userIsAdmin(user)) badges.push('<span class="badge admin-badge"><i class="fa fa-shield-halved"></i> Admin</span>');
+  return badges.join(' ');
+}
+
+function normalizeUser(user) {
+  if (userIsAdmin(user)) {
+    user.followersBonus = ADMIN_FOLLOWERS;
+  }
+  return user;
+}
+
+function saveNormalizedUser(user) {
+  const users = getUsers();
+  users[user.username] = normalizeUser(user);
+  saveUsers(users);
+  return users[user.username];
 }
 
 function isBanned(username) {
@@ -635,23 +734,29 @@ function renderProfile(username) {
   const comments = getComments().filter(c => c.author === username);
   const joined = formatDate(u.created);
   const isMe = state.currentUser && state.currentUser.username === username;
+  const followerCount = getFollowerCount(username);
+  const followingCount = getFollowingCount(username);
+  const followButton = !isMe ? `<button class="btn ${isFollowing(username) ? 'btn-outline' : 'btn-primary'}" onclick="toggleFollow('${esc(username)}')">${isFollowing(username) ? 'Following' : 'Follow'}</button>` : '';
 
   document.getElementById('profileHeader').innerHTML = `
     <div class="profile-avatar">${username[0].toUpperCase()}</div>
     <div class="profile-info">
-      <h2>u/${esc(username)} ${isMe ? '<span class="badge">You</span>' : ''}</h2>
+      <h2>u/${esc(username)} ${renderUserBadges(username)} ${isMe ? '<span class="badge">You</span>' : ''}</h2>
       <p>Joined ${joined}</p>
       <div class="profile-stats">
         <div class="stat"><div class="stat-val">${formatNum(u.karma||0)}</div><div class="stat-label"><i class="fa fa-star karma-icon"></i> Karma</div></div>
+        <div class="stat"><div class="stat-val">${formatNum(followerCount)}</div><div class="stat-label">Followers</div></div>
+        <div class="stat"><div class="stat-val">${formatNum(followingCount)}</div><div class="stat-label">Following</div></div>
         <div class="stat"><div class="stat-val">${posts.length}</div><div class="stat-label">Posts</div></div>
         <div class="stat"><div class="stat-val">${comments.length}</div><div class="stat-label">Comments</div></div>
       </div>
+      <div class="profile-actions">${followButton}</div>
     </div>
   `;
   document.getElementById('profileSidebar').innerHTML = `
     <div class="profile-avatar" style="margin:0 auto 8px;width:48px;height:48px;font-size:1.3rem">${username[0].toUpperCase()}</div>
-    <div style="text-align:center;font-weight:700;margin-bottom:4px">u/${esc(username)}</div>
-    <div style="text-align:center;font-size:0.8rem;color:var(--text-muted);margin-bottom:12px">${formatNum(u.karma||0)} karma • joined ${joined}</div>
+    <div style="text-align:center;font-weight:700;margin-bottom:4px">u/${esc(username)} ${renderUserBadges(username)}</div>
+    <div style="text-align:center;font-size:0.8rem;color:var(--text-muted);margin-bottom:12px">${formatNum(followerCount)} followers • ${formatNum(u.karma||0)} karma • joined ${joined}</div>
     ${isMe ? `<button class="btn btn-outline w-full" onclick="logout()">Log Out</button>` : ''}
   `;
   renderProfileContent(username);
@@ -700,7 +805,7 @@ function register() {
   if (password.length < 6) { errEl.textContent = 'Password must be at least 6 characters.'; return; }
   const users = getUsers();
   if (users[username]) { errEl.textContent = 'Username already taken.'; return; }
-  const user = { username, email, password: btoa(password), karma: 0, created: Date.now() };
+  const user = normalizeUser({ username, email, password: btoa(password), karma: 0, created: Date.now() });
   users[username] = user;
   saveUsers(users);
   S.set('rdt_session', username);
@@ -720,7 +825,7 @@ function login() {
   const u = users[username];
   if (!u || atob(u.password) !== password) { errEl.textContent = 'Invalid username or password.'; return; }
   S.set('rdt_session', username);
-  state.currentUser = u;
+  state.currentUser = saveNormalizedUser(u);
   closeModal('loginModal');
   renderNav();
   showPage('home');
