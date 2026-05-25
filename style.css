@@ -140,6 +140,8 @@ input, textarea, select { font-family: inherit; }
 .post-actions { display: flex; align-items: center; gap: 4px; }
 .action-btn { display: flex; align-items: center; gap: 4px; font-size: 0.75rem; font-weight: 700; color: var(--text-muted); padding: 4px 8px; border-radius: 2px; }
 .action-btn:hover { background: var(--surface2); color: var(--text); }
+.admin-action { color: #dc2626; }
+.admin-action:hover { background: rgba(220,38,38,0.1); color: #dc2626; }
 
 /* ===== SUBREDDIT BANNER ===== */
 .sub-banner { height: 80px; background: var(--primary); }
@@ -179,6 +181,8 @@ input, textarea, select { font-family: inherit; }
 .comment-vote button.active-down { color: var(--downvote); }
 .add-comment-btn { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; font-weight: 700; color: var(--text-muted); padding: 8px 0; }
 .add-comment-btn:hover { color: var(--primary); }
+.admin-link { color: #dc2626; font-size: 0.75rem; font-weight: 800; display: inline-flex; align-items: center; gap: 4px; }
+.admin-link:hover { text-decoration: underline; }
 
 /* ===== PROFILE ===== */
 .profile-header { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; display: flex; align-items: center; gap: 16px; }

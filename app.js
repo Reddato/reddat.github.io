@@ -15,6 +15,7 @@ let state = {
 };
 
 const SITE_URL = 'https://reddat.github.io';
+const ADMIN_EMAIL = 'xynfangss@gmail.com';
 
 // ── STORAGE HELPERS ────────────────────────────────────────
 const S = {
@@ -28,12 +29,14 @@ function getSubs()       { return S.get('rdt_subs')       || []; }
 function getComments()   { return S.get('rdt_comments')   || []; }
 function getVotes()      { return S.get('rdt_votes')      || {}; }
 function getJoined()     { return S.get('rdt_joined')     || {}; }
+function getBans()       { return S.get('rdt_bans')       || {}; }
 function saveUsers(v)    { S.set('rdt_users', v); }
 function savePosts(v)    { S.set('rdt_posts', v); }
 function saveSubs(v)     { S.set('rdt_subs', v); }
 function saveComments(v) { S.set('rdt_comments', v); }
 function saveVotes(v)    { S.set('rdt_votes', v); }
 function saveJoined(v)   { S.set('rdt_joined', v); }
+function saveBans(v)     { S.set('rdt_bans', v); }
 
 // ── SEED DATA ──────────────────────────────────────────────
 function seedData() {
@@ -236,6 +239,10 @@ function renderPostCard(p) {
   const sub = subs.find(s => s.id === p.subId) || { name: 'unknown', color: '#888' };
   const votes = getUserVote('post', p.id);
   const displayVotes = p.votes + (votes === 1 ? 1 : votes === -1 ? -1 : 0);
+  const adminTools = isAdmin() ? `
+          <button class="action-btn admin-action" onclick="deletePost('${p.id}')"><i class="fa fa-trash"></i> Delete</button>
+          <button class="action-btn admin-action" onclick="banUser('${esc(p.author)}')"><i class="fa fa-ban"></i> Ban u/${esc(p.author)}</button>
+        ` : '';
   return `
     <div class="post-card" id="postcard-${p.id}">
       <div class="vote-col">
@@ -255,6 +262,7 @@ function renderPostCard(p) {
         <div class="post-actions">
           <button class="action-btn" onclick="showPost('${p.id}')"><i class="fa fa-comment"></i> ${getComments().filter(c=>c.postId===p.id).length} Comments</button>
           <button class="action-btn" onclick="sharePost('${p.id}')"><i class="fa fa-share"></i> Share</button>
+          ${adminTools}
         </div>
       </div>
     </div>
@@ -289,6 +297,10 @@ function renderPostDetail(postId) {
   const comments = getComments().filter(c => c.postId === postId);
   const votes = getUserVote('post', postId);
   const displayVotes = post.votes + (votes === 1 ? 1 : votes === -1 ? -1 : 0);
+  const adminTools = isAdmin() ? `
+        <button class="action-btn admin-action" onclick="deletePost('${postId}')"><i class="fa fa-trash"></i> Delete Post</button>
+        <button class="action-btn admin-action" onclick="banUser('${esc(post.author)}')"><i class="fa fa-ban"></i> Ban u/${esc(post.author)}</button>
+      ` : '';
 
   document.getElementById('postDetail').innerHTML = `
     <div class="post-detail-card">
@@ -305,6 +317,7 @@ function renderPostDetail(postId) {
         <span style="font-size:0.85rem;font-weight:700;margin:0 4px">${formatNum(displayVotes)}</span>
         <button class="vote-btn downvote ${votes===-1?'active-down':''}" onclick="votePost('${postId}',-1);renderPostDetail('${postId}')"><i class="fa fa-arrow-down"></i></button>
         <button class="action-btn" onclick="sharePost('${postId}')"><i class="fa fa-share"></i> Share</button>
+        ${adminTools}
       </div>
     </div>
     <div class="comment-section">
@@ -329,6 +342,10 @@ function renderPostDetail(postId) {
 function renderComment(c) {
   const cv = getUserVote('comment', c.id);
   const displayVotes = c.votes + (cv === 1 ? 1 : cv === -1 ? -1 : 0);
+  const adminTools = isAdmin() ? `
+          <button class="admin-link" onclick="deleteComment('${c.id}')"><i class="fa fa-trash"></i> Delete</button>
+          <button class="admin-link" onclick="banUser('${esc(c.author)}')"><i class="fa fa-ban"></i> Ban u/${esc(c.author)}</button>
+        ` : '';
   return `
     <div class="comment" id="comment-${c.id}">
       <div class="comment-meta">
@@ -342,6 +359,7 @@ function renderComment(c) {
           <span>${formatNum(displayVotes)}</span>
           <button class="${cv===-1?'active-down':''}" onclick="voteComment('${c.id}',-1);renderPostDetail('${state.currentPost}')"><i class="fa fa-arrow-down"></i></button>
         </div>
+        ${adminTools}
       </div>
     </div>
   `;
@@ -407,6 +425,57 @@ function updateAuthorKarma(username, delta) {
   if (users[username]) { users[username].karma = (users[username].karma || 0) + delta; saveUsers(users); }
 }
 
+function isAdmin() {
+  return !!state.currentUser && String(state.currentUser.email || '').toLowerCase() === ADMIN_EMAIL;
+}
+
+function isBanned(username) {
+  return !!getBans()[username];
+}
+
+function requireNotBanned(errEl) {
+  if (state.currentUser && isBanned(state.currentUser.username)) {
+    errEl.textContent = 'Your account is banned from posting or commenting.';
+    return false;
+  }
+  return true;
+}
+
+function deletePost(postId) {
+  if (!isAdmin()) return;
+  const post = getPosts().find(p => p.id === postId);
+  if (!post || !confirm(`Delete post "${post.title}"?`)) return;
+  savePosts(getPosts().filter(p => p.id !== postId));
+  saveComments(getComments().filter(c => c.postId !== postId));
+  if (state.currentPage === 'post') {
+    showPage('home');
+  } else if (state.currentPage === 'subreddit') {
+    renderSubreddit(state.currentSub);
+  } else {
+    renderHome();
+  }
+}
+
+function deleteComment(commentId) {
+  if (!isAdmin()) return;
+  if (!confirm('Delete this comment?')) return;
+  saveComments(getComments().filter(c => c.id !== commentId));
+  if (state.currentPage === 'post') renderPostDetail(state.currentPost);
+}
+
+function banUser(username) {
+  if (!isAdmin()) return;
+  if (state.currentUser && username === state.currentUser.username) {
+    alert('You cannot ban yourself.');
+    return;
+  }
+  if (!confirm(`Ban u/${username}? They will not be able to post or comment in this browser data.`)) return;
+  const bans = getBans();
+  bans[username] = { bannedBy: state.currentUser.username, created: Date.now() };
+  saveBans(bans);
+  alert(`u/${username} has been banned.`);
+}
+
 // ── CREATING POSTS ─────────────────────────────────────────
 function populateSubSelect() {
   const sel = document.getElementById('postSubreddit');
@@ -424,6 +493,7 @@ function createPost() {
   const image = document.getElementById('postImageUrl').value.trim();
   const errEl = document.getElementById('createPostError');
   errEl.textContent = '';
+  if (!requireNotBanned(errEl)) return;
   if (!subId) { errEl.textContent = 'Please choose a community.'; return; }
   if (!title) { errEl.textContent = 'Title is required.'; return; }
   const posts = getPosts();
@@ -456,6 +526,7 @@ function submitComment() {
   const body = document.getElementById('commentBody').value.trim();
   const errEl = document.getElementById('commentError');
   errEl.textContent = '';
+  if (!requireNotBanned(errEl)) return;
   if (!body) { errEl.textContent = 'Comment cannot be empty.'; return; }
   const comments = getComments();
   const comment = {
@@ -480,6 +551,7 @@ function createSubreddit() {
   const color = document.getElementById('subColor').value.trim() || '#ff4500';
   const errEl = document.getElementById('createSubError');
   errEl.textContent = '';
+  if (!requireNotBanned(errEl)) return;
   if (!name) { errEl.textContent = 'Community name is required.'; return; }
   if (!/^[a-zA-Z0-9_]{2,21}$/.test(name)) { errEl.textContent = 'Name must be 2-21 chars, letters/numbers/underscores only.'; return; }
   const subs = getSubs();
